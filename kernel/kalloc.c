@@ -80,3 +80,28 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+// To collect the number of processes
+int
+collect_free_memory()
+{
+    struct run* r;
+    int page = 0;
+
+
+    // Acquire the lock.
+    // Loops (spins) until the lock is acquired.
+    acquire(&kmem.lock);
+    r = kmem.freelist;
+
+    // read the free space list and find the number of the free page
+    while (r)
+    {
+        page++;
+        r=r->next;
+    }
+    release(&kmem.lock);
+
+    return PGSIZE*page;
+
+}

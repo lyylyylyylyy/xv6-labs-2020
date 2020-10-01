@@ -262,10 +262,13 @@ fork(void)
   struct proc *np;
   struct proc *p = myproc();
 
+
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
   }
+
+
 
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
@@ -283,6 +286,7 @@ fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+  np->mask_num = p->mask_num;
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -692,4 +696,16 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// To collect the number of processes
+int collect_proc_num() {
+    struct proc *p;
+    int count  = 0;
+
+    for(p = proc; p < &proc[NPROC]; p++){
+        if(p->state != UNUSED)
+            count++;
+    }
+    return count;
 }
