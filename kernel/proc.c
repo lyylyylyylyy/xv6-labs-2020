@@ -113,7 +113,7 @@ allocproc(void)
         return 0;
     }
 
-    // user kernel page table.
+    // user kernel pagetable.
     p->kpagetable = proc_kpagetable(p);
     if (p->kpagetable == 0)
     {
@@ -224,8 +224,8 @@ proc_kpagetable(struct proc *p)
     ukvmmap(kpagetable, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
     ukvmmap(kpagetable, KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
     ukvmmap(kpagetable, (uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
-    ukvmmap(kpagetable, TRAMPOLINE, (uint64)(p->trapframe), PGSIZE, PTE_R | PTE_W);
-
+    ukvmmap(kpagetable, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+    ukvmmap(kpagetable, TRAPFRAME, (uint64)(p->trapframe), PGSIZE, PTE_R | PTE_W);
     return kpagetable;
 }
 
@@ -282,7 +282,6 @@ userinit(void)
     uvminit(p->pagetable, initcode, sizeof(initcode));
     p->sz = PGSIZE;
     ukvmcopy(p->pagetable, p->kpagetable, 0, p->sz);
-    // to-do
 
     // prepare for the very first "return" from kernel to user.
     p->trapframe->epc = 0;      // user program counter
@@ -307,7 +306,7 @@ growproc(int n)
     sz = p->sz;
     if(n > 0){
         // Prevent user processes from growing larger than the PLIC address.
-        if (PGROUNDUP(sz + n) >= TRAPFRAME)
+        if (PGROUNDUP(sz + n) >= PLIC)
             return -1;
         if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
             return -1;
@@ -343,6 +342,7 @@ fork(void)
     }
     np->sz = p->sz;
     ukvmcopy(np->pagetable, np->kpagetable, 0, np->sz);
+
     np->parent = p;
 
     // copy saved user registers.

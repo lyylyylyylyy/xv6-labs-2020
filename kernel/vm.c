@@ -301,6 +301,30 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     return newsz;
 }
 
+// Add mappings for user addresses to process's kernel page table
+void
+ukvmcopy(pagetable_t pagetable, pagetable_t kpagetable, uint64 oldsz, uint64 newsz)
+{
+    pte_t *pte_from, *pte_to;
+    uint64 a, pa;
+    uint flags;
+
+    if (newsz < oldsz)
+        return;
+
+    oldsz = PGROUNDUP(oldsz);
+    for (a = oldsz; a < newsz; a += PGSIZE)
+    {
+        if ((pte_from = walk(pagetable, a, 0)) == 0)
+            panic("ukvmcopy: pte should exist");
+        if ((pte_to = walk(kpagetable, a, 1)) == 0)
+            panic("ukvmcopy: walk fails");
+        pa = PTE2PA(*pte_from);
+        // A page with PTE_U set cannot be accessed in kernel mode, so clear PTE_U
+        flags = (PTE_FLAGS(*pte_from) & (~PTE_U));
+        *pte_to = PA2PTE(pa) | flags;
+    }
+}
 // Recursively free page-table pages.
 // All leaf mappings must already have been removed.
 void
@@ -424,26 +448,24 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return copyinstr_new(pagetable, dst, srcva, max);
 }
 
-// add user mappings to kernel page table (created in the previous section)
-// that allow copyin (and the related string function copyinstr)
-// to directly dereference user pointers.
-void
-ukvmcopy(pagetable_t pagetable, pagetable_t kpagetable, uint64 oldsz, uint64 newsz)
-{
-    pte_t *pte_from, *pte_to;
-    uint64 a, pa;
-    uint flags;
-
-    if(newsz < oldsz)
-        return;
-
-    oldsz = PGROUNDUP(oldsz);
-    for(a = oldsz; a < newsz; a += PGSIZE){
-        pte_from = walk(pagetable, a, 0);
-        pte_to = walk(kpagetable, a, 1);
-        pa = PTE2PA(*pte_from);
-        // A page with PTE_U set cannot be accessed in kernel mode, so clear PTE_U
-        flags = (PTE_FLAGS(*pte_from) & (~PTE_U));
-        *pte_to = PA2PTE(pa) | flags;
+// refrence ZhuEthan's lab
+void rec_vmprint(pagetable_t pagetable, int level) {
+    for (int i = 0; i < 512; i++) {
+        pte_t pte = pagetable[i];
+        if (pte & PTE_V) {
+            uint64 child = PTE2PA(pte);
+            for (int j = 0; j < level; j++) {
+                printf(" ..");
+            }
+            printf("%d: pte %p pa %p\n", i, pte, child);
+            if ((pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+                rec_vmprint((pagetable_t)child, level+1);
+            }
+        }
     }
+}
+
+void vmprint(pagetable_t pagetable) {
+    printf("page table %p\n", pagetable);
+    rec_vmprint(pagetable, 1);
 }

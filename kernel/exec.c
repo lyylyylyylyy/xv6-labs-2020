@@ -74,7 +74,9 @@ exec(char *path, char **argv)
     uvmclear(pagetable, sz-2*PGSIZE);
     sp = sz;
     stackbase = sp - PGSIZE;
+
     ukvmcopy(pagetable, p->kpagetable, 0, sz);
+
     // Push argument strings, prepare rest of stack in ustack.
     for(argc = 0; argv[argc]; argc++) {
         if(argc >= MAXARG)
@@ -155,27 +157,4 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
     }
 
     return 0;
-}
-
-void printvm(pagetable_t pagetable, int level) {
-    for (int i=0; i<512;i++) {
-        pte_t pte = pagetable[i];   // page table entry
-        // PTE_V (1L << 0)  valid
-        if (pte & PTE_V) {
-            // shift a physical address to the right place for a PTE.
-            uint64 child = PTE2PA(pte);
-            for (int j = 0; j < level; j++) {
-                printf(" ..");
-            }
-            printf("%d: pte %p pa %p\n", i, pte, child);
-            if ((pte & (PTE_R|PTE_W|PTE_X)) == 0) {
-                printvm((pagetable_t)child, level+1);  // enter next level
-            }
-        }
-    }
-}
-
-void vmprint(pagetable_t pagetable) {
-    printf("page table %p\n", pagetable);
-    printvm(pagetable, 1);
 }

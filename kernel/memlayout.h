@@ -64,4 +64,4 @@
 //   ...
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
-#define TRAPFRAME (PLIC - PGSIZE)
+#define TRAPFRAME (TRAMPOLINE - PGSIZE)
