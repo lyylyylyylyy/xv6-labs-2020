@@ -5,6 +5,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -140,7 +142,7 @@ kvmpa(uint64 va)
     pte_t *pte;
     uint64 pa;
 
-    pte = walk(kernel_pagetable, va, 0);
+    pte = walk(myproc()->kpagetable, va, 0);
     if(pte == 0)
         panic("kvmpa");
     if((*pte & PTE_V) == 0)
@@ -444,26 +446,4 @@ ukvmcopy(pagetable_t pagetable, pagetable_t kpagetable, uint64 oldsz, uint64 new
         flags = (PTE_FLAGS(*pte_from) & (~PTE_U));
         *pte_to = PA2PTE(pa) | flags;
     }
-}
-static void
-subpteprint(pagetable_t pagetable, int level)
-{
-    for(int i = 0; i < 512; i++) {
-        pte_t pte = pagetable[i];
-        if (pte & PTE_V) {
-            uint64 child = PTE2PA(pte);
-            for (int j = 0; j < level; j++) {
-                printf(" ..");
-            }
-            printf("%d: pte %p pa %p\n", i, pte, child);
-            if ((pte & (PTE_R|PTE_W|PTE_X)) == 0) {
-                rec_vmprint((pagetable_t)child, level+1);
-            }
-        }
-    }
-}
-
-void vmprint(pagetable_t pagetable) {
-    printf("page table %p\n", pagetable);
-    rec_vmprint(pagetable, 1);
 }
